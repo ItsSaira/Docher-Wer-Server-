@@ -1,0 +1,10 @@
+const express=require('express'); const os=require('os');
+const app=express(); const PORT=process.env.PORT||3000; const started=Date.now(); let bad=false, requests=0; const logs=[];
+const log=(message,level='INFO')=>{logs.unshift({time:new Date().toISOString(),level,message}); if(logs.length>80)logs.pop(); console.log(`[${level}] ${message}`)};
+app.use(express.json()); app.use((req,res,next)=>{requests++; log(`${req.method} ${req.path}`); next()});
+app.get('/api/status',(req,res)=>{const m=process.memoryUsage();res.json({status:bad?'unhealthy':'healthy',uptime:Math.floor((Date.now()-started)/1000),requests,node:process.version,platform:process.platform,hostname:os.hostname(),memoryMB:+(m.rss/1048576).toFixed(1),cpuCount:os.cpus().length,timestamp:new Date().toISOString()})});
+app.get('/health',(req,res)=>bad?res.status(503).json({status:'unhealthy',message:'Demo failure simulated'}):res.json({status:'healthy',service:'docker-web-server'}));
+app.post('/api/demo/fail',(req,res)=>{bad=true;log('Health failure simulation enabled','WARN');res.json({status:'unhealthy'})});
+app.post('/api/demo/recover',(req,res)=>{bad=false;log('Health restored successfully');res.json({status:'healthy'})});
+app.get('/api/logs',(req,res)=>res.json({logs})); app.get('/api/ping',(req,res)=>res.json({ok:true}));
+app.use(express.static('public')); app.listen(PORT,()=>log(`Server listening on port ${PORT}`));
